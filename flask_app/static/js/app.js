@@ -14,6 +14,8 @@ let hybridSteps  = [];
 let editingDocId = null;
 
 /* ── INIT ───────────────────────────────────────────────────────────────────── */
+let alertsRefreshInterval = null;
+
 document.addEventListener("DOMContentLoaded", () => {
   clock();
   setInterval(clock, 1000);
@@ -31,9 +33,11 @@ document.addEventListener("DOMContentLoaded", () => {
   bindDocumentsButton();
   bindKPIControls();
   
-  // Auto-refresh alerts every 5 seconds for real-time updates
+  // Load alerts immediately and set up refresh
   loadAndRenderAlerts();
-  setInterval(loadAndRenderAlerts, 5000);
+  
+  // Only refresh alerts every 10 seconds to avoid interrupting snooze interactions
+  alertsRefreshInterval = setInterval(loadAndRenderAlerts, 10000);
 });
 
 /* ── CLOCK ──────────────────────────────────────────────────────────────────── */
@@ -801,6 +805,16 @@ async function loadAndRenderAlerts() {
       }
     });
 
+    // Store expanded groups before re-rendering (preserve open/close state)
+    const expandedGroups = new Set();
+    document.querySelectorAll(".alert-group-content").forEach(content => {
+      if (content.style.display !== "none" && content.style.maxHeight !== "0px") {
+        const header = content.previousElementSibling;
+        const title = header?.querySelector(".alert-group-title")?.textContent;
+        if (title) expandedGroups.add(title);
+      }
+    });
+
     // Render grouped alerts
     container.innerHTML = Object.values(alertsByPR).map(prGroup => `
       <div class="alert-group">
@@ -818,7 +832,7 @@ async function loadAndRenderAlerts() {
             <span class="glyphicon glyphicon-chevron-down"></span>
           </span>
         </div>
-        <div class="alert-group-content" style="display:none;max-height:0;overflow:hidden;transition:max-height 0.3s ease-out">
+        <div class="alert-group-content" style="display:none;max-height:0;overflow:auto;transition:max-height 0.3s ease-out">
           ${prGroup.alerts.map(a => `
             <div class="alert-row alert-row-${a.delay_status}" data-pr-id="${a.pr_id}" data-task-id="${a.task_id}">
               <div class="alert-row-icon">
@@ -848,6 +862,25 @@ async function loadAndRenderAlerts() {
         </div>
       </div>
       `).join("");
+    
+    // Restore expanded groups after rendering
+    setTimeout(() => {
+      document.querySelectorAll(".alert-group").forEach(group => {
+        const header = group.querySelector(".alert-group-header");
+        const title = header?.querySelector(".alert-group-title")?.textContent;
+        if (title && expandedGroups.has(title)) {
+          const content = group.querySelector(".alert-group-content");
+          const toggle = header.querySelector(".alert-group-toggle");
+          if (content && toggle) {
+            content.style.display = "block";
+            setTimeout(() => {
+              content.style.maxHeight = content.scrollHeight + "px";
+            }, 10);
+            toggle.style.transform = "rotate(180deg)";
+          }
+        }
+      });
+    }, 0);
     
     // Update PR alert indicators
     updatePRAlertIndicators();
@@ -957,6 +990,11 @@ function openSnoozeMenu(event, prId, taskId) {
   event.stopPropagation();
   snoozingAlert = { prId, taskId };
   
+  // Temporarily pause alerts refresh to avoid re-rendering during interaction
+  if (alertsRefreshInterval) {
+    clearInterval(alertsRefreshInterval);
+  }
+  
   const modal = document.getElementById("snoozeModal");
   if (modal) {
     modal.style.display = "flex";
@@ -976,6 +1014,10 @@ async function snoozeAlert(hours) {
     
     if (!response.ok) {
       showToast("Erreur lors du masquage de l'alerte", "error");
+      // Resume refresh on error
+      if (!alertsRefreshInterval) {
+        alertsRefreshInterval = setInterval(loadAndRenderAlerts, 10000);
+      }
       return;
     }
     
@@ -994,9 +1036,18 @@ async function snoozeAlert(hours) {
     await loadAndRenderAlerts();
     
     snoozingAlert = null;
+    
+    // Resume auto-refresh
+    if (!alertsRefreshInterval) {
+      alertsRefreshInterval = setInterval(loadAndRenderAlerts, 10000);
+    }
   } catch (err) {
     console.error("[v0] Failed to snooze alert:", err);
     showToast("Erreur lors du masquage de l'alerte", "error");
+    // Resume refresh on error
+    if (!alertsRefreshInterval) {
+      alertsRefreshInterval = setInterval(loadAndRenderAlerts, 10000);
+    }
   }
 }
 
@@ -1428,6 +1479,12 @@ function closeModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
     modal.style.display = "none";
+  }
+  
+  // Resume alerts refresh when snooze modal is closed
+  if (modalId === "snoozeModal" && !alertsRefreshInterval) {
+    alertsRefreshInterval = setInterval(loadAndRenderAlerts, 10000);
+    snoozingAlert = null;
   }
 }
 

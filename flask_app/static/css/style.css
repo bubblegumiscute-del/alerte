@@ -949,9 +949,9 @@ html, body {
 }
 .alert-banner-link:hover { text-decoration: underline; }
 
-/* ══════════════════��═������������═════════════════════════════════════════════════════
+/* ══════════════════��═��������������═════════════════════════════════════════════════════
    ALERTS PANEL — detailed list below charts
-   ════════════════════════���═════════════════════════�����═������═���═���═���═���═════════════ */
+   ════════════════════════���═════════════════════════�������═������═���═���═���═���═════════════ */
 .alerts-panel {
   background: var(--white);
   border-radius: 14px;
@@ -1051,6 +1051,7 @@ html, body {
 }
 .alert-group-content {
   padding: 8px 0 8px 0;
+  max-height: 600px;
 }
 
 .alert-row {
@@ -1059,6 +1060,7 @@ html, body {
   border-bottom: 1px solid var(--grey-100);
   cursor: pointer;
   transition: background .15s;
+  position: relative;
 }
 .alert-row:last-child { border-bottom: none; }
 .alert-row:hover      { background: var(--grey-50); }
@@ -1086,6 +1088,8 @@ html, body {
 .alert-row-badge { flex-shrink: 0; }
 .alert-row-actions {
   display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 .btn-snooze {
   display: flex; align-items: center; gap: 6px;
