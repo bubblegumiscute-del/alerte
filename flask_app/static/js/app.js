@@ -807,18 +807,15 @@ async function loadAndRenderAlerts() {
 
     // Store expanded groups before re-rendering (preserve open/close state)
     const expandedGroups = new Set();
-    document.querySelectorAll(".alert-group-content").forEach(content => {
-      if (content.style.display !== "none" && content.style.maxHeight !== "0px") {
-        const header = content.previousElementSibling;
-        const title = header?.querySelector(".alert-group-title")?.textContent;
-        if (title) expandedGroups.add(title);
-      }
+    document.querySelectorAll(".alert-group.expanded").forEach(group => {
+      const title = group.querySelector(".alert-group-title")?.textContent;
+      if (title) expandedGroups.add(title);
     });
 
     // Render grouped alerts
     container.innerHTML = Object.values(alertsByPR).map(prGroup => `
       <div class="alert-group">
-        <div class="alert-group-header" onclick="toggleAlertGroup(event)" style="cursor:pointer">
+        <div class="alert-group-header" onclick="toggleAlertGroup(event)">
           <span class="alert-group-icon">
             ${prGroup.hasLate
               ? `<span class="glyphicon glyphicon-warning-sign" style="color:#C0392B"></span>`
@@ -828,11 +825,11 @@ async function loadAndRenderAlerts() {
             PR #${prGroup.pr_number} — ${escHtml(prGroup.pr_title)}
           </span>
           <span class="alert-group-count">${prGroup.alerts.length}</span>
-          <span class="alert-group-toggle" style="transition:transform 0.3s">
+          <span class="alert-group-toggle">
             <span class="glyphicon glyphicon-chevron-down"></span>
           </span>
         </div>
-        <div class="alert-group-content" style="display:none;max-height:0;overflow:auto;transition:max-height 0.3s ease-out">
+        <div class="alert-group-content">
           ${prGroup.alerts.map(a => `
             <div class="alert-row alert-row-${a.delay_status}" data-pr-id="${a.pr_id}" data-task-id="${a.task_id}">
               <div class="alert-row-icon">
@@ -866,18 +863,9 @@ async function loadAndRenderAlerts() {
     // Restore expanded groups after rendering
     setTimeout(() => {
       document.querySelectorAll(".alert-group").forEach(group => {
-        const header = group.querySelector(".alert-group-header");
-        const title = header?.querySelector(".alert-group-title")?.textContent;
+        const title = group.querySelector(".alert-group-title")?.textContent;
         if (title && expandedGroups.has(title)) {
-          const content = group.querySelector(".alert-group-content");
-          const toggle = header.querySelector(".alert-group-toggle");
-          if (content && toggle) {
-            content.style.display = "block";
-            setTimeout(() => {
-              content.style.maxHeight = content.scrollHeight + "px";
-            }, 10);
-            toggle.style.transform = "rotate(180deg)";
-          }
+          group.classList.add("expanded");
         }
       });
     }, 0);
@@ -891,28 +879,11 @@ async function loadAndRenderAlerts() {
 
 function toggleAlertGroup(event) {
   const header = event.currentTarget;
-  const content = header.nextElementSibling;
-  const toggle = header.querySelector(".alert-group-toggle");
+  const group = header.closest(".alert-group");
   
-  if (!content || !toggle) return;
+  if (!group) return;
   
-  const isHidden = content.style.display === "none";
-  
-  if (isHidden) {
-    // Expand
-    content.style.display = "block";
-    setTimeout(() => {
-      content.style.maxHeight = content.scrollHeight + "px";
-    }, 10);
-    toggle.style.transform = "rotate(180deg)";
-  } else {
-    // Collapse
-    content.style.maxHeight = "0";
-    toggle.style.transform = "rotate(0deg)";
-    setTimeout(() => {
-      content.style.display = "none";
-    }, 300);
-  }
+  group.classList.toggle("expanded");
 }
 
 async function updatePRAlertIndicators() {
@@ -959,28 +930,25 @@ async function updatePRAlertIndicators() {
 }
 
 function toggleAlertsPanel() {
-  const container = document.getElementById("alertsList");
-  const toggleIcon = document.getElementById("alertsToggleIcon");
+  const panel = document.getElementById("alertsPanel");
+  const list = document.getElementById("alertsList");
   
-  if (!container || !toggleIcon) return;
+  if (!panel || !list) return;
   
-  const isHidden = container.style.display === "none";
+  const isExpanded = list.classList.contains("expanded");
   
-  if (isHidden) {
-    // Expand
-    container.style.display = "block";
-    setTimeout(() => {
-      container.style.maxHeight = container.scrollHeight + "px";
-    }, 10);
-    toggleIcon.style.transform = "rotate(180deg)";
-  } else {
+  if (isExpanded) {
     // Collapse
-    container.style.maxHeight = "0";
-    toggleIcon.style.transform = "rotate(0deg)";
-    setTimeout(() => {
-      container.style.display = "none";
-    }, 300);
+    list.classList.remove("expanded");
+    panel.classList.remove("expanded");
+    panel.classList.add("collapsed");
+  } else {
+    // Expand
+    list.classList.add("expanded");
+    panel.classList.remove("collapsed");
+    panel.classList.add("expanded");
   }
+}
 }
 
 /* ── SNOOZE ALERT FUNCTIONS ─────────────────────────────────────────────────── */
