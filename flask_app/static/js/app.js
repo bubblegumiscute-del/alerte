@@ -863,11 +863,26 @@ async function loadAndRenderAlerts() {
     // Restore expanded groups after rendering
     setTimeout(() => {
       document.querySelectorAll(".alert-group").forEach(group => {
-        const title = group.querySelector(".alert-group-title")?.textContent;
+        const header = group.querySelector(".alert-group-header");
+        const title = header?.querySelector(".alert-group-title")?.textContent;
         if (title && expandedGroups.has(title)) {
-          group.classList.add("expanded");
+          const content = group.querySelector(".alert-group-content");
+          if (content) {
+            group.classList.add("expanded");
+            content.style.maxHeight = "none";
+            const scrollHeight = content.scrollHeight;
+            content.style.maxHeight = scrollHeight + "px";
+          }
         }
       });
+      
+      // Update alerts list max-height if it's expanded
+      const list = document.getElementById("alertsList");
+      if (list && list.classList.contains("expanded")) {
+        list.style.maxHeight = "none";
+        const scrollHeight = list.scrollHeight;
+        list.style.maxHeight = scrollHeight + "px";
+      }
     }, 0);
     
     // Update PR alert indicators
@@ -878,12 +893,31 @@ async function loadAndRenderAlerts() {
 }
 
 function toggleAlertGroup(event) {
+  event.stopPropagation();
+  
   const header = event.currentTarget;
   const group = header.closest(".alert-group");
   
   if (!group) return;
   
-  group.classList.toggle("expanded");
+  const content = group.querySelector(".alert-group-content");
+  const isExpanded = group.classList.contains("expanded");
+  
+  if (isExpanded) {
+    // Collapse
+    group.classList.remove("expanded");
+    content.style.maxHeight = "0px";
+  } else {
+    // Expand
+    group.classList.add("expanded");
+    // Calculate actual height
+    content.style.maxHeight = "none";
+    const scrollHeight = content.scrollHeight;
+    content.style.maxHeight = scrollHeight + "px";
+    
+    // Add padding for better scrolling
+    group.style.paddingBottom = "8px";
+  }
 }
 
 async function updatePRAlertIndicators() {
@@ -940,11 +974,15 @@ function toggleAlertsPanel() {
   if (isExpanded) {
     // Collapse
     list.classList.remove("expanded");
+    list.style.maxHeight = "0px";
     panel.classList.remove("expanded");
     panel.classList.add("collapsed");
   } else {
     // Expand
     list.classList.add("expanded");
+    list.style.maxHeight = "none";
+    const scrollHeight = list.scrollHeight;
+    list.style.maxHeight = scrollHeight + "px";
     panel.classList.remove("collapsed");
     panel.classList.add("expanded");
   }
